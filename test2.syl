@@ -1,0 +1,5 @@
+
+
+@infix
+func diffWith(first: u8, second: u8) -> i8 = return second as i8 - first as i8
+

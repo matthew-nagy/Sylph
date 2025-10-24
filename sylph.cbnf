@@ -1,0 +1,73 @@
+<any_text> ::= {{? Any text ?}}
+<identifier> ::= {{? Normal language identifier ?}} | {{? Normal language operator ?}}
+// Uses indentation to make sure when the python ends. Runs after top level type declaration before function compilation
+<python_meta> ::= "meta" "{" <any_text> "}"
+// Eventually there may be a way for users to define their own
+<tag> ::= "@" ("prefeix" | "infix")
+// For now, will add symbols and so forth later
+<function_identifier> ::= <identifier>
+<comment> ::= "#" <any_text>
+<digit> ::= [0,9]
+<integer_literal> ::= <digit>+ | ("0b"[0,1]+) | ("0x"(<digit> | "A" | "B" | "C" | "D" | "E" | "F")+)
+<float_literal> ::= <digit>+ "." <digit>+
+<string_literal> ::= "\"" (<any_text> - "\"") "\""
+<bool_literal> ::= "true" | "false"
+<null_literal> ::= "null"
+<literal> ::= <integer_literal> | <float_literal> | <string_literal> | <bool_literal> | <null_literal>
+
+<builtin_types> ::= "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "f32" | "f64" | "bool" | "string" | "Null"
+//temp type def
+<type> ::= <builtin_types>
+<array_type> ::= <type> "[" <integer_literal> "]"
+<ptr_type> ::= <type> "ptr"
+<sum_type_inner> ::= <type> | ("(" <type> ")")
+<sum_type> ::= <sum_type_inner> "or" <sum_type_inner>
+<function_ptr> ::= "(" (<type> | ((<type> ",")+ <type>))? ")" ("->" <type>)?
+// Finish type def
+<type> ::=| <array_type> | <ptr_type> | <sum_type_inner> | <sum_type> | <function_ptr>
+
+<typedef> ::= "typedef" <type> "=" <type>
+
+<variable_decl> ::= <identifier> ":" <type>
+
+//Bootstrapping expression definition
+<expression> ::= <literal> | <identifier> | ("(" <expression> ")")
+<block> ::= "{" <expression>* "}"
+<if_expr> ::= "if" <expression> "then" <expression> ("elif" <expression> "then" <expression>)* ("else" <expression>)?
+<while_expr> ::= "while" <expression> "do" <expression> ("else" <expression>)?
+<variable_def> ::= <identifier> ((":" <type> "=") | (":=")) <expression>
+<for_expr> ::= "for" <variable_def>? ";" <expression>? ";" <expression>? "do" <expression>
+<assignment> ::= <identifier> "=" <expression>
+<function_call> ::= <identifier> "(" (<expression> | ((<expression> ",")+ <expression>))? ")"
+<index> ::= <expression> "[" <expression> "]"
+<is_expr> ::= <identifier> "is" <type> // Used p much entirely for sum types
+<as_expr> ::= <expression> "as" <type> // Can cast anything, especially useful for sum types
+<infix_op> ::= <identifier> <identifier> <identifier>
+<prefix_op> ::= <identifier> <identifier>
+<reference> ::= "ref" <identifier>
+// This will be type checked to make sure its a dereferencable type
+<dereference> ::= "deref" <expression>
+
+// Finish expression definition
+<expression> ::=| <block> | <if_expr> | <while_expr> | <for_expr> | <variable_def> | <assignment> | <function_call> | <index> | <is_expr> | <as_expr> 
+                | <prefix_op> | <infix_op> | <reference> | <dereference>
+
+<statement> ::= <variable_decl> | <expression> | <python_meta>
+
+// If the return type is not given it is assumed to be null. This doesn't include provisions for infix and prefix operators, can be added later
+<function_decl> ::= <tag>* "func" <function_identifier> "(" (<variable_decl> | ((<variable_decl> ",")+ <variable_decl>))? ")" ("->" <type>)?
+// This doesn't include provisions for pattern matching, but that can be added later
+<function_def> ::= <function_decl> "{" <statement>* "}"
+<include> ::= "include" <string_literal>
+<top-level> ::= (<comment> | <include> | <typedef > | <variable_decl> | <function_decl> | <function_def> | <python_meta>)
+<program> ::= <top-level>*
+
+
+// To do:
+//      - I want pattern matching on function calls
+//      - A match statement would be sick
+//      - We have no structs, interfaces, nothing of that sort. Smthn to think about
+//      - Maybe postfix functions if thats not horrific
+//
+//      - Currently there is no interaction with the outside world. Think about 3rd party libs (not technically a bnf issue)
+//

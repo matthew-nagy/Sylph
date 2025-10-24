@@ -1,0 +1,11 @@
+include "test2.syl"
+
+using SumTest = (u8 or string ptr or (()->Null) or (i32 or float))[64]
+
+func myHero(lmao: u8, freaking: bool) -> string{
+    if freaking then print("my freak academia")
+    else for i = 0; i < lmao; i++ do{
+        diff := i diffWith lmao
+        print(diff as str)
+    }
+}
