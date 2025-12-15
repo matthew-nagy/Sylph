@@ -188,7 +188,6 @@ def parsePreAndPostIdentifier(tList:TokenList, module: StructureModule, symbolFr
     return keyIdentifier
 
 
-
 def parseIdentifierLine(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
     startingIdentifierToken = tList.get()
     allFunctions: Dict[str, CollectedFunction] = symbolFrame.getModule().functions
@@ -196,6 +195,101 @@ def parseIdentifierLine(tList: TokenList, types: TypeDict, symbolFrame: SymbolFr
 
 
     return None, False
+
+'''
+
+Ordered in precidence
+Assignment
+Comparisson
+Boolean
+Bitwise
+Bitshift
+Factor
+Sum
+as/ is
+pre/post ops (inc ref/deref and indexing)
+function call
+identifier, literals or brackets
+
+'''
+def parseBinaryOpImpl(leftFunc, opList, rightFunc, tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) ->NodeAndSuccess:
+    left, success = leftFunc(tList, types, symbolFrame, errors)
+    if not success:
+        return None, False
+    if tList.peekStr() in opList:
+        op = tList.get()
+        right, success = rightFunc(tList, types, symbolFrame, errors)
+        if not success:
+            return None, False
+        left = AST.BinaryOp(left, op, right)
+    return left, True
+
+
+def parseIdentifier(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    pass
+
+def parseFunctionCall(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    pass
+
+def parsePrePost(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    pass
+
+def parseAsIs(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    left, success = parsePrePost(tList, types, symbolFrame, errors)
+    if not success:
+        return None, False
+    
+    if tList.match(Keywords.Is):
+        op = tList.get()
+        rtype, success = parseType(types, tList)
+        if not success:
+            return None, False
+        left = AST.Is(left, op, rtype)
+    elif tList.match(Keywords.As):
+        op = tList.get()
+        rtype, success = parseType(types, tList)
+        if not success:
+            return None, False
+        left = AST.As(left, op, rtype)
+    return left, True
+
+def parseSum(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseAsIs, ["+", "-"], parseSum, tList, types, symbolFrame, errors)
+
+def parseFactor(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseSum, ["*", "/", "%"], parseFactor, tList, types, symbolFrame, errors)
+
+def parseBitshift(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseFactor, ["<<", ">>"], parseBitshift, tList, types, symbolFrame, errors)
+
+def parseBitwise(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseBitshift, ["&", "|", "^"], parseBitwise, tList, types, symbolFrame, errors)
+
+def parseBoolean(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseBitwise, ["and", "or", "xor", "&&", "||", "^^"], parseBoolean, tList, types, symbolFrame, errors)
+
+def parseComparison(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    return parseBinaryOpImpl(parseBoolean, ["<", "<=", ">", ">=", "==", "!="], parseComparison, tList, types, symbolFrame, errors)
+
+@parser
+def parseAssigment(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:
+    startLoc = tList.peek().location
+    left, success = parseComparison(tList, types, symbolFrame, errors)
+    if not success:
+        return None, False
+    
+    if tList.peekStr() == "=":
+        if not AST.NodeTrait.LValue in left.traits():
+            raise Core.CompileError("Left hand side of assignment expression is non assignable", startLoc)
+        op = tList.get()
+        # Can be anything. Truly, this is madness
+        right, success = parseExpression(tList, types, symbolFrame, errors)
+        if not success:
+            return None, False
+        left = AST.BinaryOp(left, op, right)
+
+    return left, True
+
 
 # REDO That deref thing to allow assignment afterwards
 def parseExpression(tList: TokenList, types: TypeDict, symbolFrame: SymbolFrame, errors: ErrorList) -> NodeAndSuccess:

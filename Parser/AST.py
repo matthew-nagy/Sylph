@@ -94,12 +94,6 @@ class Dereference(Node):
 class Return(Node):
     val: Node
 
-# This is specifically for when we don't have function overloads for these as operators
-@ast()
-class Assign(Node):
-    lval: Node
-    value: Node
-
 @ast()
 class BinaryOp(Node):
     left: Node
