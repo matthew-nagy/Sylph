@@ -56,6 +56,19 @@ class TokenList:
                 return True, self.get()
         return False, None
     
+    def matchBool(self, value: TT | List[TT] | Keywords | str) -> bool:
+        match value:
+            case TT() if self.peek().ttype == value:
+                return True
+            case [TT(), *_] if self.peekType() in value:
+                return True
+            case Keywords() if isinstance(self.peek().detail, Keywords):
+                if self.peek().detail == value:
+                    return True
+            case str() if self.peek().string == value:
+                return True
+        return False
+    
     def expect(self, value: TT | List[TT] | Keywords | str) -> Token:
         matched, tokens = self.match(value)
         if matched:

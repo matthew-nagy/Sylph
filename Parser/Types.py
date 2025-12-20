@@ -10,6 +10,17 @@ class FunctionSigniture:
     argumentTypes: List[SylphType]
     returnType: SylphType
 
+    def hasDifferentArgumentTypes(self, other) -> bool:
+        if len(self.argumentTypes) != len(other.argumentTypes):
+            print("Different number of arguments",)
+            return True
+        for i in range(len(self.argumentTypes)):
+            if self.argumentTypes[i].__class__ != other.argumentTypes[i].__class__:
+                print(self.argumentTypes[i].__class__,"vs",other.argumentTypes[i].__class__)
+                return True
+        print("Hmm, this looks similar to me")
+        return False
+
     def getFnPtrType(self):
         return FunctionPtr(self.argumentTypes, self.returnType)
 
@@ -100,8 +111,6 @@ class Symbol:
     type: SylphType
     location: Core.CompileError
 
-# TODO: Because of how things are rn, functions aren't symbols
-# so you can't use them as identifiers :/
 class SymbolFrame:
     
     def __init__(self, parent):

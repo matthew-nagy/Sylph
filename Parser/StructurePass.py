@@ -10,21 +10,48 @@ from Parser.Types import *
 class CollectedFunction:
     signiture: FunctionSigniture
 
+    name: Token
+
     # TODO: Having only one arg token and one def list means no pattern matching
     argTokens: List[Token]
     definition: List[Token]
 
 class StructureModule:
 
+    def __str__(self) -> str:
+        result = "Types:"
+        for t in self.types:
+            result += "\n\t" + t
+        result += "\nFunctions"
+        for name in self.functions.keys():
+            func = self.functions[name]
+            result += "\n\t" + name + "\n\t\t" + str(func)
+        return result
+
     def __init__(self):
         self.types: TypeDict = StructureModule.getGlobalTypes()
         # TODO: Only one collected function here means no overloading
-        self.functions: Dict[str, CollectedFunction] = {}
+        self.functions: Dict[str, list[CollectedFunction]] = {}
+
+    def verify(self) -> tuple[bool, list[Core.CompileError]]:
+        errors: list[Core.CompileError] = []
+        for funcs in self.functions.values():
+            for i in range(len(funcs)):
+                for j in range(i + 1, len(funcs)):
+                    print("Checking\n\t",funcs[i].name,"\n\t", funcs[j].name)
+                    if not funcs[i].signiture.hasDifferentArgumentTypes(funcs[j].signiture):
+                        errors.append(Core.CompileError("Functions cannot be differentiated by return type (" + funcs[i].name.string + ") against " + str(funcs[j].name.location), funcs[i].name.location))
+        return len(errors) == 0, errors
 
     def isFunctionWithArity(self, name: str, arity: int) -> bool:
         if name in self.functions.keys():
-            return len(self.functions[name].signiture.argumentTypes) == arity
+            return True in [len(func.signiture.argumentTypes) == arity for func in self.functions[name]]
         return False
+
+    def getGlobalFrame(self) -> SymbolFrame:
+        frame = SymbolFrame(None)
+        frame.module = self
+        return frame
 
     @staticmethod
     # TODO: Support half width floating points? Fixed point? (For snes lmao)
@@ -99,7 +126,11 @@ def parseFunc(module: StructureModule, tList: TokenList, tags: List[Token] = [])
             if depth > 0:
                 contentsTokens.append(token)
     
-    module.functions[nameToken.string] = CollectedFunction(FunctionSigniture(tags, argTypes, returnType), argTokens, contentsTokens)
+    collectedFunc = CollectedFunction(FunctionSigniture(tags, argTypes, returnType), nameToken, argTokens, contentsTokens)
+    if not nameToken.string in module.functions:
+        module.functions[nameToken.string] = [collectedFunc]
+    else:
+        module.functions[nameToken.string].append(collectedFunc)
     return None
 
 @Core.orError

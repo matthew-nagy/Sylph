@@ -72,12 +72,12 @@ class Reader:
         return False, si
 
     def getSourceInfo(self) -> Core.SourceInfo:
-        currFile = self.files[-1]
+        currFile = self.files[-1] if len(self.files) > 0 else File([], "NullFile")
         return Core.SourceInfo(currFile.filename, currFile.lineNumber, currFile.charNumber)
     
     def removeWhitespace(self):
         removing = True
-        while removing:
+        while removing and len(self.files) > 0:
             while self.peek() in charset.whitespace:
                 self.get()
             if self.peek() == charset.commentChar:
@@ -233,6 +233,8 @@ class Scanner:
 
         while reader.reading() and len(errors) < Core.MAX_ERRORS:
             reader.removeWhitespace()
+            if not reader.reading():
+                continue
             output = Scanner.processToken(reader)
             if isinstance(output, Core.CompileError):
                 errors.append(output)

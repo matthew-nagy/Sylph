@@ -46,6 +46,7 @@ class Keywords(Enum):
     Using = 13
     Meta = 14
     Return = 15
+    Const = 16
 
 KeywordMap = {
     "if": Keywords.If, "elif": Keywords.Elif, "else": Keywords.Else, "then": Keywords.Then, 
@@ -54,7 +55,8 @@ KeywordMap = {
     "ptr": Keywords.Ptr, "ref": Keywords.Ref, "deref": Keywords.Deref,
     "as": Keywords.As, "is": Keywords.Is, "using": Keywords.Using,
     "meta": Keywords.Meta,
-    "return": Keywords.Return
+    "return": Keywords.Return,
+    "const": Keywords.Const
 }
 
 class TagType(Enum):

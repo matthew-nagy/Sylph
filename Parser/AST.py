@@ -5,6 +5,7 @@ from Parser.Types import SymbolFrame
 from dataclasses import dataclass
 from typing import Dict, Set
 from Parser.StructurePass import CollectedFunction
+from Parser.Types import Symbol
 
 class NodeTrait(Enum):
     # Assignable or addressable
@@ -64,7 +65,7 @@ class For(Node):
 
 @ast()
 class FunctionCall(Node):
-    function: Node | CollectedFunction
+    function: Node | CollectedFunction | Symbol
     arguments: List[Node]
 
 @ast(NodeTrait.LValue)
@@ -94,8 +95,7 @@ class Dereference(Node):
 class Return(Node):
     val: Node
 
-@ast()
-class BinaryOp(Node):
+@ast
+class Assign(Node):
     left: Node
-    operator: Token
     right: Node

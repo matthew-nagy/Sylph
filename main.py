@@ -4,29 +4,28 @@ import Parser.AST
 import Parser.FunctionPass as FunctionPass
 from Parser.Types import SymbolFrame
 from Parser.TokenList import TokenList
+from Core import CompileError
+import sys
 
-# succeeded, results = Scanner.scan("test.syl")
-# if succeeded:
-#     succeeded, module = StructurePass(results)
-#     if succeeded:
-#         print("Structure Module")
-#         print("TYPES")
-#         print(module.types)
-#         print("FUNCTIONS")
-#         print(module.functions)
-#     else:
-#         print("Errors:")
-#         for error in module:
-#             print(error)
-# else:
-#     print("Errors:")
-#     for error in results:
-#         print(error)
+success, scannerResult = Scanner.scan("simple.syl")
+if not success:
+    print("Scanner Errors:")
+    for error in scannerResult:
+        print("\t", error)
+    sys.exit(-1)
 
-_, module = StructurePass(Scanner.scan("simple.syl")[1])
-frame = SymbolFrame(None)
-frame.module = module
-errors = []
-print(FunctionPass.parseExpression(TokenList(module.functions["a"].definition), module.types, frame, errors))
-for e in errors:
-    print(e)
+success, structureResult = StructurePass(scannerResult)
+if not success:
+    print("Structure Pass Errors:")
+    for error in scannerResult:
+        print("\t", error)
+    sys.exit(-1)
+
+success, errors = structureResult.verify()
+if not success:
+    print("Verification Errors")
+    for error in errors:
+        print("\t", error)
+    sys.exit(-1)
+
+print(str(structureResult))
