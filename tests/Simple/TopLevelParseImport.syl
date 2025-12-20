@@ -1,0 +1,3 @@
+func thatOne()->string{
+    return "Halloo from import"
+}

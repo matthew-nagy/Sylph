@@ -1,0 +1,14 @@
+func fruitSalad(something: aValue, nextThing: theOtherType ptr) -> None {
+
+    for i: i8 = 0; i < 20; i++ do{
+        if i < 20f then print(i)
+        if i < 20.0 then print(i)
+        if i == 'o' then print(i)
+    }
+
+    print("A new thing:\n\tThe code working!!!\n")
+
+    if true then print('\\')
+
+    return None
+}
