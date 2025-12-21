@@ -7,7 +7,7 @@ func olChesnut(a: float, b: float, pred: bool) -> float{
     else return a / b
 }
 
-func memcpy(from: memory, to: memory, , size: u64){
+func memcpy(from: memory, to: memory, size: u64){
     for i: u64 = 0; i < size; i++ do
         to[i] = from[i]
 }

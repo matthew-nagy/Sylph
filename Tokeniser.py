@@ -250,6 +250,10 @@ class Tokeniser:
             # We assume its a list
             self.tokenBuffer += result
 
+    # For when rather than files, we just want to go over some tokens
+    def feedTokens(self, tokens: list[Token]):
+        self.tokenBuffer += tokens
+
     # TODO: Want more than just relative paths here
     # Should have a "Add Include Path" func
     # If could be more than one file, return a special error token on import
@@ -266,6 +270,9 @@ class Tokeniser:
     
     def peek(self) -> Token:
         if len(self.tokenBuffer) == 0:
+            if len(self.filesToParse) == 0:
+                # TODO: This is kinda... not a great way to handle this
+                return Token(TokenType.EndOfFile, SourceInfo(0, 0, ""), "")
             self.__getNewToken()
         return self.tokenBuffer[0]
 

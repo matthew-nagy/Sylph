@@ -2,9 +2,6 @@ from Structures import *
 from common import *
 from Tokeniser import TokenType
 
-# TODO: Currently, function types for arguments and return types are parsed before imports are finished
-# This should be delayed a but until we are sure that all types have been defined
-
 class TopLevelParser:
     def __init__(self, startingFile: str):
         typeDict: TypeDict = {
@@ -18,15 +15,57 @@ class TopLevelParser:
         if errorType != ErrorType.NoError:
             self.brain.errors.append(SylphError(SourceInfo(0, 0, startingFile), errorType))
     
+    def __parseGetFunc(self) -> PreParseFunction:
+        tList: Tokeniser = self.brain.tList
+        tList.next()
+        functionNameToken = tList.expect(TokenType.Identifier)
+        tList.expect(TokenType.OpenBracket)
+        
+        signitureTokens: list[Token] = []
+        openDepth = 1
+        while openDepth > 0:
+            nextToken = tList.next()
+            signitureTokens.append(nextToken)
+            if nextToken.ttype == TokenType.OpenBracket:
+                openDepth += 1
+            elif nextToken.ttype == TokenType.CloseBracket:
+                openDepth -= 1
+        while tList.peekType() != TokenType.OpenBrace:
+            signitureTokens.append(tList.next())
+
+        bodyTokens: list[Token] = []
+        tList.expect(TokenType.OpenBrace)
+        depth = 1
+        while depth > 0:
+            if tList.peekType() == TokenType.OpenBrace:
+                depth += 1
+                bodyTokens.append(tList.next())
+            elif tList.peekType() == TokenType.CloseBrace:
+                depth -= 1
+                cb = tList.next()
+                if depth > 0:
+                    bodyTokens.append(cb)
+            else:
+                bodyTokens.append(tList.next())
+
+        preParseFunc: PreParseFunction = PreParseFunction(
+            functionNameToken, FunctionType(NoneType(), []), signitureTokens, [], bodyTokens
+        )
+        return preParseFunc
+
     def parse(self) -> tuple[ParseBrain, bool]:
         # Quick escape if we weren't able to find the first file
         if len(self.brain.errors) > 0:
             return self.brain, False
 
+        classDefs: list[tuple[Token, list[Token]]] = []
+
         tList: Tokeniser = self.brain.tList
         while tList.canTokenise() and len(self.brain.errors) < MAXIMUM_ERROR_COUNT:
             try:
                 match tList.peekType():
+                    # TODO: We shouldn't do these right away
+                    # Make empty types for classes, then do aliases, then parse the class
                     case TokenType.Alias:
                         tList.next()
                         newTypeName = tList.expect(TokenType.Identifier)
@@ -36,50 +75,24 @@ class TopLevelParser:
                             raise newType
                         self.brain.globalFrame.typeDict[newTypeName.rep] = newType
                     case TokenType.Class:
-                        # TODO: Implement this!
-                        raise SylphError(tList.peek().sourceInfo, ErrorType.Unknown, ["Haven't implemented classes yet"])
-                    case TokenType.Func:
                         tList.next()
-                        functionNameToken = tList.expect(TokenType.Identifier)
-                        tList.expect(TokenType.OpenBracket)
-                        argumentTokens: list[Token] = []
-                        argumentTypes: list[SylphType] = []
-                        while tList.peekType() != TokenType.CloseBracket:
-                            if len(argumentTokens) > 0:
-                                tList.expect(TokenType.Comma)
-                            argumentTokens.append(tList.expect(TokenType.Identifier))
-                            tList.expect(TokenType.Colon)
-                            argType = parseType(tList, self.brain.globalFrame.typeDict)
-                            if isinstance(argType, SylphError):
-                                raise argType
-                            argumentTypes.append(argType)
-                        
-                        tList.expect(TokenType.CloseBracket)
-                        returnType = NoneType()
-                        if tList.peekType() != TokenType.OpenBrace:
-                            tList.expectString("->")
-                            returnType = parseType(tList, self.brain.globalFrame.typeDict)
-                            if isinstance(returnType, SylphError):
-                                raise returnType
-
-                        bodyTokens: list[Token] = []
+                        className = tList.expect(TokenType.Identifier)
+                        classTokens: list[Token] = []
                         tList.expect(TokenType.OpenBrace)
-                        depth = 1
-                        while depth > 0:
-                            if tList.peekType() == TokenType.OpenBrace:
-                                depth += 1
-                                bodyTokens.append(tList.next())
-                            elif tList.peekType() == TokenType.CloseBrace:
-                                depth -= 1
-                                cb = tList.next()
-                                if depth > 0:
-                                    bodyTokens.append(cb)
+                        braceDepth = 1
+                        while braceDepth > 0:
+                            nextToken = tList.next()
+                            if nextToken.ttype == TokenType.CloseBrace:
+                                braceDepth -= 1
+                                if braceDepth > 0:
+                                    classTokens.append(nextToken)
                             else:
-                                bodyTokens.append(tList.next())
-
-                        preParseFunc: PreParseFunction = PreParseFunction(
-                            functionNameToken, FunctionType(returnType, argumentTypes), argumentTokens, bodyTokens
-                        )
+                                classTokens.append(nextToken)
+                                if nextToken.ttype == TokenType.OpenBrace:
+                                    braceDepth += 1
+                        classDefs.append((className, classTokens))
+                    case TokenType.Func:
+                        preParseFunc = self.__parseGetFunc()
                         self.brain.globalFrame.registerFunction(preParseFunc)
 
                     case TokenType.Import:
@@ -100,6 +113,23 @@ class TopLevelParser:
             except SylphError as error:
                 print("Error caught")
                 self.brain.errors.append(error)
+        
+        #TODO: Classes
+        if len(classDefs) > 0:
+            raise SylphError(classDefs[0][0].sourceInfo, ErrorType.Unknown, ["Haven't implemented classes yet"])
+
+        print("Time to parse the ppf")
+        for funcList in self.brain.globalFrame.preParsedFunctions.values():
+            for ppf in funcList:
+                print("Parsing", ppf.token.rep)
+                e = ppf.generateSigniture(self.brain.globalFrame.typeDict)
+                if e is not None:
+                    print("Oh no, error")
+                    self.brain.errors.append(e)
+                    if len(self.brain.errors) >= MAXIMUM_ERROR_COUNT:
+                        break
+            if len(self.brain.errors) >= MAXIMUM_ERROR_COUNT:
+                break
         return self.brain, len(self.brain.errors) == 0
         
 if __name__ == "__main__":

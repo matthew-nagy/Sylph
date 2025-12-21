@@ -7,6 +7,8 @@ from common import SylphError
 class PreParseFunction:
     token: Token
     signiture: FunctionType
+    # We can't figure out the signiture until we've parsed all the types first
+    signitureTokens: list[Token]
 
     argumentTokens: list[Token]
 
@@ -14,6 +16,33 @@ class PreParseFunction:
 
     def __str__(self) -> str:
         return self.token.rep + " " + str(self.signiture) + "(" + ", ".join([i.rep for i in self.argumentTokens]) + "):\n" + str(self.bodyTokens)
+    
+    @orError
+    def generateSigniture(self, typeDict: TypeDict) -> SylphError | None:
+        argumentTokens: list[Token] = []
+        argumentTypes: list[SylphType] = []
+        tList = Tokeniser()
+        tList.feedTokens(self.signitureTokens)
+        while tList.peekType() != TokenType.CloseBracket:
+            if len(argumentTokens) > 0:
+                tList.expect(TokenType.Comma)
+            argumentTokens.append(tList.expect(TokenType.Identifier))
+            tList.expect(TokenType.Colon)
+            argType = parseType(tList, typeDict)
+            if isinstance(argType, SylphError):
+                raise argType
+            argumentTypes.append(argType)
+        
+        tList.expect(TokenType.CloseBracket)
+        returnType = NoneType()
+        if not tList.peekType() in [TokenType.OpenBrace, TokenType.Error, TokenType.EndOfFile]:
+            tList.expectString("->")
+            returnType = parseType(tList, typeDict)
+            if isinstance(returnType, SylphError):
+                raise returnType
+        self.argumentTokens = argumentTokens
+        self.signiture = FunctionType(returnType, argumentTypes)
+        return None
 
 @dataclass
 class Symbol:

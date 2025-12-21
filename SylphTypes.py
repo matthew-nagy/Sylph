@@ -67,6 +67,9 @@ class PointerType(IndexableType):
     def getByteSize(self) -> int:
         return POINTER_SIZE
 
+@dataclass
+class ErrorType(SylphType):
+    pass
 
 TypeDict = dict[str, SylphType]
 
